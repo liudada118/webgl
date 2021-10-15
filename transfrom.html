@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="uiContainer">
+        <div id="ui">
+            <div id="x"></div>
+            <div id="y"></div>
+        </div>
+    </div>
+</body>
+<script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+<script src="https://webglfundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
+<script>
+    const webgl = document.getElementById('canvas')
+    const gl = webgl.getContext('webgl')
+    webglLessonsUI.setupSlider("#x", { slide: updatePosition(0), max: gl.canvas.width });
+    webglLessonsUI.setupSlider("#y", { slide: updatePosition(1), max: gl.canvas.height });
+
+
+    function updatePosition() { }
+</script>
+
+</html>

@@ -9,22 +9,48 @@
 </head>
 
 <body>
-    <canvas id="webgl" width="500" height="500" style="background-color: blue"></canvas>
+    <canvas id="webgl" width="500" height="500" ></canvas>
 </body>
-<script id="vertex_shader_2d" type="notjs">
+<!-- <script id="vertex_shader_2d" type="notjs">
 
     // 一个属性变量，将会从缓冲中获取数据
     attribute vec4 a_position;
+
+    uniform vec2 u_resolution
    
     // 所有着色器都有一个main方法
     void main() {
+
+        vec2 zeroToOne = a_position.xy / u_resolution
+
+        vec2 zeroToTwo = zeroToOne * 2.0
+
+        vec2 clipSpace = zeroToTwo - 1
+
+        gl_Position = vec4(clipSpace , 0 , 1)
    
-      // gl_Position 是一个顶点着色器主要设置的变量
-      gl_Position = a_position;
     }
    
-  </script>
+  </script> -->
 
+  <script  id="vertex_shader_2d" type="notjs">
+    attribute vec4 a_position;
+  
+    uniform vec2 u_resolution;
+  
+    void main() {
+       // convert the position from pixels to 0.0 to 1.0
+       vec2 zeroToOne = a_position.xy / u_resolution;
+  
+       // convert from 0->1 to 0->2
+       vec2 zeroToTwo = zeroToOne * 2.0;
+  
+       // convert from 0->2 to -1->+1 (clipspace)
+       vec2 clipSpace = zeroToTwo - 1.0;
+  
+       gl_Position = vec4(clipSpace, 0, 1);
+    }
+  </script>
 <script id="fragmeng_shader_2d" type="notjs">
 
     // 片断着色器没有默认精度，所以我们需要设置一个精度
@@ -64,22 +90,66 @@
 
 
     // 将JavaScript数组positions，转化为webgl需要的强类型 Float32Array，将positions绑定到gl.ARRAY_BUFFER上，gl.STATIC_DRAW 值这些数据不会经常改变
+    // var positions = [
+    //     0, 0,
+    //     0, 0.5,
+    //     0.7, 0,
+    // ];
+
     var positions = [
-        0, 0,
-        0, 0.5,
-        0.7, 0,
+        10, 20,
+        80, 20,
+        10, 30,
+        10, 30,
+        80, 20,
+        80, 30,
     ];
 
-    gl.bufferData(gl.ARRAY_BUFFER , new Float32Array(positions) , gl.STATIC_DRAW)
+    // 给缓存数据 gl.ARRAY_BUFFER 赋值
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW)
 
     // webglUtils.resizeCanvasToDisplaySize(gl.canvas);
 
+    // 将视图可画区域填满
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    gl.cleanColor(0,0,0,0)
+    // 清空画板
+    gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+
+    // 使用着色器程序
     gl.useProgram(program)
+
+    // 寻找缓存变量
+    gl.enableVertexAttribArray(positionAttributeLocation)
+
+    // 绑定缓存变量
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
+
+    // 寻找全局变量
+    var resolutionUniformLocation = gl.getUniformLocation(program, 'u_resolution')
+
+
+
+    var size = 2
+    var type = gl.FLOAT
+    var normalize = false
+    var stride = 0
+    var offset = 0
+
+
+    // 将数据绑定在 gl.ARRAY_BUFFER上
+    gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
+
+    // 设置分辨率
+    gl.uniform2f(resolutionUniformLocation , gl.canvas.width , gl.canvas.height)
+
+    var primitiveType = gl.TRIANGLES
+    var offset = 0
+    var count = 6
+
+    gl.drawArrays(primitiveType, offset, count)
 
     function createShader(gl, type, source) {
         // 创建 shader
@@ -110,7 +180,7 @@
         gl.linkProgram(program)
 
         // 使用program
-        
+
         var success = gl.getProgramParameter(program, gl.LINK_STATUS);
         if (success) {
             return program
