@@ -14,17 +14,39 @@
         <div id="ui">
             <div id="x"></div>
             <div id="y"></div>
+            <div id="angle"></div>
+            <div id="scaleX"></div>
+            <div id="scaleY"></div>
         </div>
     </div>
 </body>
-<script  id="vertex-shader-2d" type="x-shader/x-vertex">
+<script src="https://webglfundamentals.org/webgl/resources/jquery-1.7.1.min.js"></script>
+<script src="https://webglfundamentals.org/webgl/resources/jquery-ui-1.8.16.custom.min.js"></script>
+<script src="https://webglfundamentals.org/webgl/resources/jquery.mousecapture.js"></script>
+<script src="https://webglfundamentals.org/webgl/resources/jquery.gman.ui.js"></script>
+<script src="https://webglfundamentals.org/webgl/resources/jquery-gman-circle.js"></script>
+<script id="vertex-shader-2d" type="x-shader/x-vertex">
     attribute vec2 a_position;
     
     uniform vec2 u_resolution;
+    uniform vec2 u_translation;
+    uniform vec2 u_rotation;
+    uniform vec2 u_scale;
     
     void main() {
+        vec2 scaledPosition = a_position * u_scale;
+
+        vec2 rotatedPosition = vec2 (
+            scaledPosition.x*u_rotation.y + scaledPosition.y*u_rotation.x,
+            scaledPosition.y*u_rotation.y - scaledPosition.x*u_rotation.x
+        );
+
+        vec2 position = rotatedPosition + u_translation; 
+
        // convert the rectangle points from pixels to 0.0 to 1.0
-       vec2 zeroToOne = a_position / u_resolution;
+       vec2 zeroToOne = position / u_resolution;
+
+       
     
        // convert from 0->1 to 0->2
        vec2 zeroToTwo = zeroToOne * 2.0;
@@ -35,8 +57,8 @@
        gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
     }
     </script>
-    <!-- fragment shader -->
-    <script  id="fragment-shader-2d" type="x-shader/x-fragment">
+<!-- fragment shader -->
+<script id="fragment-shader-2d" type="x-shader/x-fragment">
     precision mediump float;
     
     uniform vec4 u_color;
@@ -59,14 +81,21 @@
 
     // lookup uniforms
     var resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+    var translationLocation = gl.getUniformLocation(program, 'u_translation')
+    var rotationLocation = gl.getUniformLocation(program, 'u_rotation')
     var colorLocation = gl.getUniformLocation(program, "u_color");
+    var scaleLocation = gl.getUniformLocation(program, "u_scale")
 
     // Create a buffer to put positions in
     var positionBuffer = gl.createBuffer();
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
+    setGeometry(gl)
+
     var translation = [0, 0];
+    var rotation = [0, 1]
+    var scale = [1, 1]
     var width = 100;
     var height = 30;
     var color = [Math.random(), Math.random(), Math.random(), 1];
@@ -75,6 +104,32 @@
 
     webglLessonsUI.setupSlider("#x", { slide: updatePosition(0), max: gl.canvas.width });
     webglLessonsUI.setupSlider("#y", { slide: updatePosition(1), max: gl.canvas.height });
+    webglLessonsUI.setupSlider("#angle", { slide: updateAngle, max: 360 });
+    webglLessonsUI.setupSlider("#scaleX", { value: scale[0], slide: updateScale(0), min: -5, max: 5, step: 0.01, precision: 2 });
+    webglLessonsUI.setupSlider("#scaleY", { value: scale[1], slide: updateScale(1), min: -5, max: 5, step: 0.01, precision: 2 });
+
+    function updatePosition(index) {
+        return function (event, ui) {
+            translation[index] = ui.value;
+            drawScene();
+        };
+    }
+
+    function updateAngle(event, ui) {
+        var angleInDegrees = 360 - ui.value;
+        var angleInRadians = angleInDegrees * Math.PI / 180;
+        rotation[0] = Math.sin(angleInRadians);
+        rotation[1] = Math.cos(angleInRadians);
+        drawScene();
+    }
+
+    function updateScale(index) {
+        return function (event, ui) {
+            scale[index] = ui.value;
+            drawScene();
+        };
+    }
+
 
     function drawScene() {
         webglUtils.resizeCanvasToDisplaySize(gl.canvas)
@@ -91,7 +146,7 @@
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
         // 设置矩形参数
-        setRectangle(gl, translation[0], translation[1], width, height);
+        // setRectangle(gl, translation[0], translation[1], width, height);
 
         // 告诉属性怎么从positionBuffer中读取数据 (ARRAY_BUFFER)
         var size = 2;          // 每次迭代运行提取两个单位数据
@@ -108,20 +163,21 @@
         // 设置颜色
         gl.uniform4fv(colorLocation, color);
 
+        gl.uniform2fv(translationLocation, translation);
+
+        gl.uniform2fv(rotationLocation, rotation)
+
+        gl.uniform2fv(scaleLocation, scale)
+
         // 绘制矩形
         var primitiveType = gl.TRIANGLES;
         var offset = 0;
-        var count = 6;
+        var count = 18;
         gl.drawArrays(primitiveType, offset, count);
 
     }
 
-    function updatePosition(index) {
-        return function (event, ui) {
-            translation[index] = ui.value;
-            drawScene();
-        };
-    }
+
 
     function setRectangle(gl, x, y, width, height) {
         var x1 = x;
@@ -137,6 +193,37 @@
                 x1, y2,
                 x2, y1,
                 x2, y2,
+            ]),
+            gl.STATIC_DRAW);
+    }
+    // 在缓冲存储构成 'F' 的值
+    function setGeometry(gl) {
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([
+                // 左竖
+                0, 0,
+                30, 0,
+                0, 150,
+                0, 150,
+                30, 0,
+                30, 150,
+
+                // 上横
+                30, 0,
+                100, 0,
+                30, 30,
+                30, 30,
+                100, 0,
+                100, 30,
+
+                // 中横
+                30, 60,
+                67, 60,
+                30, 90,
+                30, 90,
+                67, 60,
+                67, 90,
             ]),
             gl.STATIC_DRAW);
     }
